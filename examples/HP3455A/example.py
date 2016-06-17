@@ -109,7 +109,7 @@ symbols = {
 	0x01A1: "SR_HPRS",
 	0x01A5: "SR_LNRS",
 	0x01A8: "SLOW_RUNDOWN_LOOP",
-	0x01AB: "SUB_1AB",
+	0x01AB: "CHECK_RESULT_SIGN",
 	0x01BB: "LAB_1BB",
 	0x01BD: "LAB_1BD",
 	0x01C5: "LAB_1C5",
@@ -133,8 +133,8 @@ def task(pj, dx):
 		for a,l in symbols.items():
 			pj.set_label(a,l)
 	pj.set_block_comment(0x000, """HP 3455A inguard ROM
-The nanoprocessor takes two clocks per instruction and runs at 819.2 kHz
-if 60Hz line frequency is selected.
+The nanoprocessor takes two clocks per instruction.
+It runs at 819.2 kHz if 50Hz line frequency is selected.
 
 The startup code is at 0x0FD
 
@@ -157,10 +157,17 @@ REG0			# PLCs
 REG1
 REG2
 REG3			Control bits from Outguard
-REG9:REG8		One PLC counter 
+REG7			Rundown during integration counter
+REG9:REG8		PLC counter (REG9 has PLCs elapsed)
 REG15			AtoD device bits
 REG5			AtoD device bits for rundown during integration
 REG13:REG12:REG11	Count
+
+These device control bits are used as temporary flags.  It is assumed that
+the outguard doesn't drive them and doesn't look at them during integration.
+
+DCTL0	Sign of result is valid
+DCTL3	Sign of result
 
 DEV1 is written by the second instruction of each loop/sub-loop.
 (This fact is used by the PLC counter.)
@@ -178,10 +185,18 @@ The instruction counts and control bits in REG5 will be wrong otherwise.
 DCTL2 was initialized to 1, but could it change during integration?
 """)
 	pj.set_block_comment(0x8B, """Start rundown during integration
-The loop initialization code assumes that there will be no overflow of REG12.
-This condition can be met if 256 is not divisible by the number of counts during
-each rundown period multiplied by the number of rundown periods (127 at full scale).
+The loop initialization code assumes that there will be no overflow of REG12
+when it increments it.  This is usually true since this loop will increment
+the count by 8 each time it runs, so we won't hit a count of 255 here.
+However, if the input sign changes, with the count at a multiple of 256,
+we will decrement the counter and miss the underflow!
 REG12 overflow IS handled in the loop itself.
+This loop runs for (8 * 32 * 2) clock periods or about 0.5ms.  This will reduce
+the magnitude of voltage on the integration capacitor by about 6.35V.
+
+Note that the 0V detect signal was used to set up REG5 and is also used in
+CHECK_RESULT_SIGN to determine whether we will increment of decrement the count.
+Since we are over 10V here, there is no chance it changed inbetween.
 """)
 	pj.set_block_comment(0xFF, """Interrupt Handler
 The interrupt breaks the slow rundown loop which was accumulating the count in A.
@@ -207,7 +222,12 @@ must be set accordingly.  The interrupt is armed to fire when 0VDETECT changes -
 It's the only way you can increment a counter and conditionally loop with two instructions
 (it took four instructions per iteration during the fast rundown).
 """)
-
+	pj.set_block_comment(0x1CB, """Increment the PLC Counter
+This is called every 32 instructions during integration, hence every 64 clocks.
+(256 * 64 * clock period) is one PLC, so the high byte of the counter (REG9) ends
+up with the number of PLCs elapsed since the counter was zeroed.
+REG9 is returned in the accumulator.
+""")
 	while pj.run():
 		pass
 
@@ -243,7 +263,7 @@ It's the only way you can increment a counter and conditionally loop with two in
 
 def output(pj):
 	code.lcmt_flows(pj)
-	listing.Listing(pj)
+	listing.Listing(pj, "HP3455A_Inguard.lst")
 
 if __name__ == '__main__':
 	pj, cx = setup()
