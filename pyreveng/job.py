@@ -74,9 +74,13 @@ class Job(object):
 		self.dolist = list()
 		self.pending_flows = dict()	# flow.py
 		self.labels = dict()
+		self.block_comments = dict()
 
 	def set_label(self, adr, lbl):
 		self.labels[adr] = lbl
+
+	def set_block_comment(self, adr, cmt):
+		self.block_comments[adr] = cmt
 
 	def afmt(self, a):
 		return self.apct % a

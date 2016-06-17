@@ -121,7 +121,7 @@ def task(pj, dx):
 	if True:
 		for a,l in symbols.items():
 			pj.set_label(a,l)
-	pj.set_comment(0x000, """HP 3455A inguard ROM
+	pj.set_block_comment(0x000, """HP 3455A inguard ROM
 The nanoprocessor takes two clocks per instruction and runs at 819.2 kHz
 if 60Hz line frequency is selected.
 
@@ -136,11 +136,11 @@ DEV1 bits:	REG3 bits:
 0x01	LVIN	5
 Note all device output is inverted in hardware, so the complement must be written to DEV1
 """)
-	pj.set_comment(0x03C, """AtoD Auto-Zero
+	pj.set_block_comment(0x03C, """AtoD Auto-Zero
 0x14 = HAZ on, everything else off
 AUTOZERO_LOOP is 16 instructions per iteration
 """)
-	pj.set_comment(0x05A, """Main Integration Loop
+	pj.set_block_comment(0x05A, """Main Integration Loop
 Register usage:
 REG0			# PLCs
 REG1

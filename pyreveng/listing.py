@@ -175,6 +175,12 @@ class Listing(object):
 		if not compact:
 			m = max(len(hex), m)
 
+		cmt = self.pj.block_comments.get(lo)
+		if cmt != None:
+			self.fo.write("----------------------------------------------------------------------------------------------\n")
+			self.fo.write(cmt)
+			self.fo.write("----------------------------------------------------------------------------------------------\n")
+
 		lbl = self.pj.labels.get(lo)
 		if lbl == None:
 			lbl = "\t"
