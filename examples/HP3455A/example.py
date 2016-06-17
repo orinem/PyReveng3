@@ -42,6 +42,17 @@ def setup():
 
 	return pj, dx
 
+def line_comment(adr, cmt):
+	i = pj.find(adr)
+	if i == None:
+		return
+	assert len(i) == 1
+	i = i[0]
+	if hasattr(i, 'lcmt'):
+	    i.lcmt += cmt
+	else:
+	    i.lcmt = cmt
+
 symbols = {
 	0x001E: "WAIT_CLOCK_LOW",
 	0x0021: "WAIT_CLOCK_HIGH",
@@ -65,7 +76,7 @@ symbols = {
 	0x0088: "GOTO_RUNDOWN2",
 	0x008B: "OVER10V",
 	0x009C: "RUNDOWN_DURING_INTEGRATE",
-	0x00AD: "RUNDOWN_DURING_INTEGRATE_LOOP",
+	0x00AD: "RUNDOWN_DURING_INTEGRATE2",
 	0x00BE: "LAB_0BE",
 	0x00C0: "OUTPUT_NEXT_BYTE",
 	0x00C3: "OUTPUT_BIT",
@@ -151,6 +162,8 @@ REG15			AtoD device bits
 REG5			AtoD device bits for rundown during integration
 REG13:REG12:REG11	Count
 
+DEV1 is written by the second instruction of each loop/sub-loop.
+(This fact is used by the PLC counter.)
 Each loop or sub-loop during integration is exactly 32 instructions
 The count is shifted left by 3 after integration
 During fast rundown, each loop is exactly 4 instructions and
@@ -159,9 +172,74 @@ REG11 is set during slow rundown, REG13:REG12 are used during integration and fa
 The doubling of the count rate and inherent 8 bit shift give the 128:1 weighting between
 fast and slow rundown.
 """)
+	pj.set_block_comment(0x60, """Select rundown type
+This code assumes that if DCTL0 (0DETECT) is zero, then DCTL2 is set.
+The instruction counts and control bits in REG5 will be wrong otherwise.
+DCTL2 was initialized to 1, but could it change during integration?
+""")
+	pj.set_block_comment(0x8B, """Start rundown during integration
+The loop initialization code assumes that there will be no overflow of REG12.
+This condition can be met if 256 is not divisible by the number of counts during
+each rundown period multiplied by the number of rundown periods (127 at full scale).
+REG12 overflow IS handled in the loop itself.
+""")
+	pj.set_block_comment(0xFF, """Interrupt Handler
+The interrupt breaks the slow rundown loop which was accumulating the count in A.
+The slow rundown count is saved in REG11 and added to/subtracted from the
+rest of the count in REG13:REG12.
+The rundown is stopped and auto-zero started immediately.
+""")
+	pj.set_block_comment(0x14A, """Rundown
+Stop integrating the input and start the rundown.
+First, counts accumulated during the integration phase are multiplied by 8.
+This is because each count represented 32 instruction periods and in the fast
+rundown phase, each count represents 4 instruction periods.
+It's possible the rundown during integration overshot 0V, so the counts here
+may need subtracting from the count, hence the two loops, one that increments
+and one that decrements.
+""")
+	pj.set_block_comment(0x19B, """Slow Rundown
+In the slow rundown, counts represent 2 instruction periods.  This, along with the
+fact that the current count is effectively shifted left by 8 bits when the slow
+count is concatenated gives the 128:1 weighting.
+Again, the fast rundown might have overshot 0V, so the direction of the rundown
+must be set accordingly.  The interrupt is armed to fire when 0VDETECT changes -
+It's the only way you can increment a counter and conditionally loop with two instructions
+(it took four instructions per iteration during the fast rundown).
+""")
 
 	while pj.run():
 		pass
+
+	line_comment(0x004, "Use existing settings\n")
+	line_comment(0x006, "Default Control Bits\n")
+	line_comment(0x009, "Use default settings\n")
+	line_comment(0x01D, "Calculated parity\n")
+	line_comment(0x03C, "HAZ on\n")
+	line_comment(0x03E, "1..11 instructions; loop is 16 instr. per iteration\n")
+	line_comment(0x046, "Initialize (zero) the count\n")
+	line_comment(0x04C, "LVIN on\n")
+	line_comment(0x055, "LNRF,HPRF on\n")
+	line_comment(0x075, "LNRF,HPRF on\n")
+	line_comment(0x058, "All AtoD inputs off\n")
+	line_comment(0x078, "All AtoD inputs off\n")
+	line_comment(0x062, "HPRF\n")
+	line_comment(0x065, "LNRF\n")
+	line_comment(0x06A, "REG7 = 7\n")
+	line_comment(0x088, "Maintain 32 instr. between writes to DEV1\n")
+	line_comment(0x09E, "Inc/dec count as appropriate\n")
+	line_comment(0x0FF, "Stops rundown and sets HAZ\n")
+	line_comment(0x14A, "Set Integrator to 'Hold'\n")
+	line_comment(0x16C, "LNRF on\n")
+	line_comment(0x173, "Set Integrator to 'Hold'\n")
+	line_comment(0x177, "HPRF on\n")
+	line_comment(0x17B, "HPRF on\n")
+	line_comment(0x182, "LNRF on\n")
+	line_comment(0x189, "Set Integrator to 'Hold'\n")
+	line_comment(0x19B, "Arm interrupt on 0VDETECT change\n")
+	line_comment(0x1A1, "HPRS on\n")
+	line_comment(0x1A5, "LNRS on\n")
+	line_comment(0x1A8, "Loop is broken by interrup\n")
 
 def output(pj):
 	code.lcmt_flows(pj)
