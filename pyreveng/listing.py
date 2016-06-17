@@ -177,9 +177,9 @@ class Listing(object):
 
 		cmt = self.pj.block_comments.get(lo)
 		if cmt != None:
-			self.fo.write("----------------------------------------------------------------------------------------------\n")
-			self.fo.write(cmt)
-			self.fo.write("----------------------------------------------------------------------------------------------\n")
+			self.fo.write(self.pj.comment_prefix + "-------------------------------------------------------------------------------\n" + self.pj.comment_prefix)
+			self.fo.write(cmt.replace("\n", "\n" + self.pj.comment_prefix))
+			self.fo.write("-------------------------------------------------------------------------------\n")
 
 		lbl = self.pj.labels.get(lo)
 		if lbl == None:
