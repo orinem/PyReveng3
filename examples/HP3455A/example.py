@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 # Copyright (c) 2012-2014 Poul-Henning Kamp <phk@phk.freebsd.dk>
+# HP 3455A modifications: Copyright (c) 2016 Orin Eman <orin.eman@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -132,19 +133,25 @@ def task(pj, dx):
 	if True:
 		for a,l in symbols.items():
 			pj.set_label(a,l)
+
 	pj.set_block_comment(0x000, """HP 3455A inguard ROM
+
 The nanoprocessor takes two clocks per instruction.
-It runs at 819.2 kHz if 50Hz line frequency is selected.
+The clock runs at 819.2 kHz if 50Hz line frequency is selected
+and 983.04 kHz for 60Hz line frequency.
+
+The internal power line cycle counter is 256 times a 32 instruction loop
+per PLC, i.e. 256*32*2/983040 giving 16.67 ms for 60Hz.
 
 The startup code is at 0x0FD
 
-DEV1 bits:	REG3 bits:
-0x20	LNRF	0	Autocal LNRF and HPRF only
-0x10	HPRF	1	8 PLC	
-0x08	HAZ	2	Autocal - no input to AtoD
-0x04	HPRS	3
-0x02	LNRS	4	Set device latches to values from outguard
-0x01	LVIN	5
+DEV1 bits:        REG3 bits:
+0x20    LNRF      0   Autocal LNRF and HPRF only
+0x10    HPRF      1   8 PLC
+0x08    HAZ       2   Autocal - no input to AtoD
+0x04    HPRS      3
+0x02    LNRS      4   Set device latches to values from outguard
+0x01    LVIN      5
 Note all device output is inverted in hardware, so the complement must be written to DEV1
 """)
 	pj.set_block_comment(0x03C, """AtoD Auto-Zero
@@ -182,7 +189,7 @@ fast and slow rundown.
 	pj.set_block_comment(0x60, """Select rundown type
 This code assumes that if DCTL0 (0DETECT) is zero, then DCTL2 is set.
 The instruction counts and control bits in REG5 will be wrong otherwise.
-DCTL2 was initialized to 1, but could it change during integration?
+DCTL2 was initialized to 1 and does not appear to change during the integration phase.
 """)
 	pj.set_block_comment(0x8B, """Start rundown during integration
 The loop initialization code assumes that there will be no overflow of REG12
@@ -192,7 +199,8 @@ However, if the input sign changes, with the count at a multiple of 256,
 we will decrement the counter and miss the underflow!
 REG12 overflow IS handled in the loop itself.
 This loop runs for (8 * 32 * 2) clock periods or about 0.5ms.  This will reduce
-the magnitude of voltage on the integration capacitor by about 6.35V.
+the magnitude of voltage on the integration capacitor by about 6.1V (1mA from a 0.082uF
+capacitor for 0.5ms).
 
 Note that the 0V detect signal was used to set up REG5 and is also used in
 CHECK_RESULT_SIGN to determine whether we will increment of decrement the count.
