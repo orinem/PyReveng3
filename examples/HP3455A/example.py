@@ -173,8 +173,16 @@ REG13:REG12:REG11	Count
 These device control bits are used as temporary flags.  It is assumed that
 the outguard doesn't drive them and doesn't look at them during integration.
 
-DCTL0	Sign of result is valid
-DCTL3	Sign of result
+DCTL0	Tentative sign of result is valid
+DCTL3	Tentative sign of result
+
+DCTL3 is set during integration when the count is zero.  Should the input voltage
+change such that the sign of the voltage on the integration capacitor changes
+and the magnitude is greater than 10V, then DCTL0 is cleared to indicate the
+sign is potentially invalid and the count should be decremented during the current
+rundown period.  Given the approximately 80 times multiplication factor between input
+voltage and voltage on the integration capacitor, it wouldn't require much reverse
+voltage for very long for this to happen.
 
 DEV1 is written by the second instruction of each loop/sub-loop.
 (This fact is used by the PLC counter.)
@@ -257,6 +265,7 @@ REG9 is returned in the accumulator.
 	line_comment(0x088, "Maintain 32 instr. between writes to DEV1\n")
 	line_comment(0x09E, "Inc/dec count as appropriate\n")
 	line_comment(0x0FF, "Stops rundown and sets HAZ\n")
+	line_comment(0x132, "Result is negative\n")
 	line_comment(0x14A, "Set Integrator to 'Hold'\n")
 	line_comment(0x16C, "LNRF on\n")
 	line_comment(0x173, "Set Integrator to 'Hold'\n")
@@ -267,7 +276,9 @@ REG9 is returned in the accumulator.
 	line_comment(0x19B, "Arm interrupt on 0VDETECT change\n")
 	line_comment(0x1A1, "HPRS on\n")
 	line_comment(0x1A5, "LNRS on\n")
-	line_comment(0x1A8, "Loop is broken by interrup\n")
+	line_comment(0x1A8, "Loop is broken by interrupt\n")
+	line_comment(0x1B4, "Result so far is positive\n")
+	line_comment(0x1B4, "Result so far is negative\n")
 
 def output(pj):
 	code.lcmt_flows(pj)
