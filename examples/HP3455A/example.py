@@ -68,17 +68,17 @@ symbols = {
 	0x0055: "SET_LNRF_HPRF",
 	0x0058: "SET_LVIN_OFF",
 	0x005A: "INTEGRATE_LOOP",
-	0x0068: "LAB_068",
-	0x006D: "LAB_06D",
+	0x0068: "INIT_DISCHARGE_COUNT",
+	0x006D: "ATOD_AUTOCAL",
 	0x0075: "SET_LNRF_HPRF2",
 	0x0078: "SET_LVIN_OFF2",
-	0x007C: "LAB_07C",
+	0x007C: "INTEGRATE_LOOP_NEXT",
 	0x0081: "GOTO_RUNDOWN1",
 	0x0088: "GOTO_RUNDOWN2",
 	0x008B: "OVER10V",
-	0x009C: "RUNDOWN_DURING_INTEGRATE",
-	0x00AD: "RUNDOWN_DURING_INTEGRATE2",
-	0x00BE: "LAB_0BE",
+	0x009C: "DISCHARGE_DURING_INTEGRATE",
+	0x00AD: "DISCHARGE_DURING_INTEGRATE2",
+	0x00BE: "NO_CARRY",
 	0x00C0: "OUTPUT_NEXT_BYTE",
 	0x00C3: "OUTPUT_BIT",
 	0x00C9: "OUTPUT_FIRST_BYTE",
@@ -159,15 +159,15 @@ Note all device output is inverted in hardware, so the complement must be writte
 AUTOZERO_LOOP is 16 instructions per iteration
 """)
 	pj.set_block_comment(0x05A, """Main Integration Loop
+
 Register usage:
 REG0			# PLCs
-REG1
-REG2
+REG2			AtoD autocal counter
 REG3			Control bits from Outguard
-REG7			Rundown during integration counter
+REG5			AtoD device bits for discharge during integration
+REG7			Discharge during integration counter
 REG9:REG8		PLC counter (REG9 has PLCs elapsed)
 REG15			AtoD device bits
-REG5			AtoD device bits for rundown during integration
 REG13:REG12:REG11	Count
 
 These device control bits are used as temporary flags.  It is assumed that
@@ -180,7 +180,7 @@ DCTL3 is set during integration when the count is zero.  Should the input voltag
 change such that the sign of the voltage on the integration capacitor changes
 and the magnitude is greater than 10V, then DCTL0 is cleared to indicate the
 sign is potentially invalid and the count should be decremented during the current
-rundown period.  Given the approximately 80 times multiplication factor between input
+discharge period.  Given the approximately 80 times multiplication factor between input
 voltage and voltage on the integration capacitor, it wouldn't require much reverse
 voltage for very long for this to happen.
 
@@ -194,12 +194,14 @@ REG11 is set during slow rundown, REG13:REG12 are used during integration and fa
 The doubling of the count rate and inherent 8 bit shift give the 128:1 weighting between
 fast and slow rundown.
 """)
-	pj.set_block_comment(0x60, """Select rundown type
+	pj.set_block_comment(0x60, """Select discharge type
+
 This code assumes that if DCTL0 (0DETECT) is zero, then DCTL2 is set.
 The instruction counts and control bits in REG5 will be wrong otherwise.
 DCTL2 was initialized to 1 and does not appear to change during the integration phase.
 """)
-	pj.set_block_comment(0x8B, """Start rundown during integration
+	pj.set_block_comment(0x8B, """Start discharge during integration
+
 The loop initialization code assumes that there will be no overflow of REG12
 when it increments it.  This is usually true since this loop will increment
 the count by 8 each time it runs, so we won't hit a count of 255 here.
@@ -215,13 +217,14 @@ CHECK_RESULT_SIGN to determine whether we will increment of decrement the count.
 Since we are over 10V here, there is no chance it changed inbetween.
 """)
 	pj.set_block_comment(0xFF, """Interrupt Handler
+
 The interrupt breaks the slow rundown loop which was accumulating the count in A.
 The slow rundown count is saved in REG11 and added to/subtracted from the
 rest of the count in REG13:REG12.
 The rundown is stopped and auto-zero started immediately.
 """)
-	pj.set_block_comment(0x14A, """Rundown
-Stop integrating the input and start the rundown.
+	pj.set_block_comment(0x14A, """Stop integrating the input and start the rundown
+
 First, counts accumulated during the integration phase are multiplied by 8.
 This is because each count represented 32 instruction periods and in the fast
 rundown phase, each count represents 4 instruction periods.
@@ -230,6 +233,7 @@ may need subtracting from the count, hence the two loops, one that increments
 and one that decrements.
 """)
 	pj.set_block_comment(0x19B, """Slow Rundown
+
 In the slow rundown, counts represent 2 instruction periods.  This, along with the
 fact that the current count is effectively shifted left by 8 bits when the slow
 count is concatenated gives the 128:1 weighting.
@@ -239,6 +243,7 @@ It's the only way you can increment a counter and conditionally loop with two in
 (it took four instructions per iteration during the fast rundown).
 """)
 	pj.set_block_comment(0x1CB, """Increment the PLC Counter
+
 This is called every 32 instructions during integration, hence every 64 clocks.
 (256 * 64 * clock period) is one PLC, so the high byte of the counter (REG9) ends
 up with the number of PLCs elapsed since the counter was zeroed.
@@ -260,7 +265,7 @@ REG9 is returned in the accumulator.
 	line_comment(0x058, "All AtoD inputs off\n")
 	line_comment(0x078, "All AtoD inputs off\n")
 	line_comment(0x062, "HPRF\n")
-	line_comment(0x065, "LNRF\n")
+	line_comment(0x064, "LNRF\n")
 	line_comment(0x06A, "REG7 = 7\n")
 	line_comment(0x088, "Maintain 32 instr. between writes to DEV1\n")
 	line_comment(0x09E, "Inc/dec count as appropriate\n")
