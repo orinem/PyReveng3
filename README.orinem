@@ -1,4 +1,9 @@
+This fork has been merged with upstream: https://github.com/bsdphk/PyReveng3
+
+It remains to retain the mostly uninformative git history that was abandoned when the HP 3455A example was added to https://github.com/bsdphk/PyReveng3.
+
 Orin's changes:
 
 Fix for python 3.X - use // instead of / for integer division where integer result is (eventually) required.
-
+Added "block" comments.
+Added 3455A inguard ROM example.
